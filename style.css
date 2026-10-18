@@ -146,6 +146,15 @@ main {
 .content table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
 .content th, .content td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
 
+.content > pre {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-bg);
+  margin: 1.2em 0;
+  padding: 12px 16px;
+  overflow-x: auto;
+}
+
 .code {
   border: 1px solid var(--border);
   border-radius: 8px;
