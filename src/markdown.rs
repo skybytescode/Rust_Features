@@ -3,7 +3,8 @@
 //! Blocurile de cod Rust primesc un buton care deschide exemplul în
 //! Rust Playground. Atributele de tip rustdoc schimbă afișarea:
 //! `rust,compile_fail` marchează un exemplu care nu compilează intenționat,
-//! iar `rust,ignore` ascunde butonul de rulare.
+//! `rust,should_panic` unul care dă panic intenționat, iar `rust,ignore`
+//! ascunde butonul de rulare.
 
 use pulldown_cmark::{CodeBlockKind, CowStr, Event, Options, Parser, Tag, TagEnd, html};
 
@@ -40,6 +41,8 @@ fn code_block(lang: &str, code: &str) -> String {
     let mut header = String::new();
     if fails {
         header.push_str(r#"<span class="badge fail">Nu compilează (intenționat)</span>"#);
+    } else if lang.contains("should_panic") {
+        header.push_str(r#"<span class="badge fail">Dă panic (intenționat)</span>"#);
     }
     if !lang.contains("ignore") {
         header.push_str(&format!(
