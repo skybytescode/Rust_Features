@@ -1,5 +1,6 @@
 mod app;
 mod content;
+mod highlight;
 mod markdown;
 
 fn main() {

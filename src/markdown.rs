@@ -5,6 +5,8 @@
 //! `rust,compile_fail` marchează un exemplu care nu compilează intenționat,
 //! `rust,should_panic` unul care dă panic intenționat, iar `rust,ignore`
 //! ascunde butonul de rulare.
+//!
+//! Toate blocurile de cod sunt colorate de `crate::highlight`.
 
 use pulldown_cmark::{CodeBlockKind, CowStr, Event, Options, Parser, Tag, TagEnd, html};
 
@@ -12,20 +14,29 @@ const PLAYGROUND: &str = "https://play.rust-lang.org/?version=stable&mode=debug&
 
 pub fn render(src: &str) -> String {
     let mut events = Vec::new();
-    // Atributele blocului de cod Rust curent și codul strâns până acum.
-    let mut rust_block: Option<(String, String)> = None;
+    // Limbajul blocului de cod curent și codul strâns până acum.
+    let mut block: Option<(String, String)> = None;
 
     for event in Parser::new_ext(src, Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH) {
         match event {
-            Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(ref lang))) if lang.starts_with("rust") => {
-                rust_block = Some((lang.to_string(), String::new()));
+            Event::Start(Tag::CodeBlock(ref kind)) => {
+                let lang = match kind {
+                    CodeBlockKind::Fenced(lang) => lang.to_string(),
+                    CodeBlockKind::Indented => String::new(),
+                };
+                block = Some((lang, String::new()));
             }
-            Event::Text(text) if rust_block.is_some() => {
-                rust_block.as_mut().unwrap().1.push_str(&text);
+            Event::Text(text) if block.is_some() => {
+                block.as_mut().unwrap().1.push_str(&text);
             }
-            Event::End(TagEnd::CodeBlock) if rust_block.is_some() => {
-                let (lang, code) = rust_block.take().unwrap();
-                events.push(Event::Html(CowStr::from(code_block(&lang, &code))));
+            Event::End(TagEnd::CodeBlock) if block.is_some() => {
+                let (lang, code) = block.take().unwrap();
+                let html = if lang.starts_with("rust") {
+                    code_block(&lang, &code)
+                } else {
+                    plain_block(&lang, &code)
+                };
+                events.push(Event::Html(CowStr::from(html)));
             }
             other => events.push(other),
         }
@@ -53,8 +64,21 @@ fn code_block(lang: &str, code: &str) -> String {
     format!(
         r#"<div class="code{}"><div class="code-bar">{header}</div><pre><code>{}</code></pre></div>"#,
         if fails { " fails" } else { "" },
-        escape_html(code)
+        crate::highlight::rust(code)
     )
+}
+
+fn plain_block(lang: &str, code: &str) -> String {
+    let body = match lang {
+        "toml" | "bash" | "sh" => crate::highlight::simple(code, lang),
+        _ => escape_html(code),
+    };
+    format!("<pre><code>{body}</code></pre>")
+}
+
+#[cfg(test)]
+pub fn escape_for_test(s: &str) -> String {
+    escape_html(s)
 }
 
 fn escape_html(s: &str) -> String {

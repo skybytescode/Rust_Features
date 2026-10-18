@@ -10,6 +10,15 @@
   --code-bg: #f4f1ec;
   --fail: #b91c1c;
   --fail-soft: #fdecec;
+  --tok-kw: #a626a4;
+  --tok-ty: #b45309;
+  --tok-str: #3f7d20;
+  --tok-num: #0e7490;
+  --tok-com: #8a847c;
+  --tok-mac: #1d4ed8;
+  --tok-fn: #1e40af;
+  --tok-attr: #8a847c;
+  --tok-lt: #be123c;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -23,6 +32,15 @@
     --code-bg: #26221f;
     --fail: #f87171;
     --fail-soft: #3b1d1d;
+    --tok-kw: #d19bf0;
+    --tok-ty: #f5b971;
+    --tok-str: #a5d68a;
+    --tok-num: #7dd3e8;
+    --tok-com: #857d74;
+    --tok-mac: #8fb4ff;
+    --tok-fn: #93c5fd;
+    --tok-attr: #9a928a;
+    --tok-lt: #fda4af;
   }
 }
 
@@ -173,6 +191,16 @@ main {
 }
 .code pre { margin: 0; padding: 10px 16px 14px; overflow-x: auto; }
 .code code, pre code { font: 0.88rem/1.55 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.tok-kw { color: var(--tok-kw); }
+.tok-ty { color: var(--tok-ty); }
+.tok-str { color: var(--tok-str); }
+.tok-num { color: var(--tok-num); }
+.tok-com { color: var(--tok-com); font-style: italic; }
+.tok-mac { color: var(--tok-mac); }
+.tok-fn { color: var(--tok-fn); }
+.tok-attr { color: var(--tok-attr); }
+.tok-lt { color: var(--tok-lt); }
+
 .run {
   font-size: 0.8rem;
   font-weight: 600;
