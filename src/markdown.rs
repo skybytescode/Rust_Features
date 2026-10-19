@@ -10,11 +10,14 @@
 
 use pulldown_cmark::{CodeBlockKind, CowStr, Event, Options, Parser, Tag, TagEnd, html};
 
+use crate::content::Lang;
+use crate::i18n::strings;
+
 const PLAYGROUND: &str = "https://play.rust-lang.org/?version=stable&mode=debug&edition=2024&code=";
 
-pub fn render(src: &str) -> String {
+pub fn render(src: &str, lang: Lang) -> String {
     let mut events = Vec::new();
-    // Limbajul blocului de cod curent și codul strâns până acum.
+    // Atributele blocului de cod curent (limbajul etc.) și codul strâns până acum.
     let mut block: Option<(String, String)> = None;
 
     for event in Parser::new_ext(src, Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH) {
@@ -30,11 +33,11 @@ pub fn render(src: &str) -> String {
                 block.as_mut().unwrap().1.push_str(&text);
             }
             Event::End(TagEnd::CodeBlock) if block.is_some() => {
-                let (lang, code) = block.take().unwrap();
-                let html = if lang.starts_with("rust") {
-                    code_block(&lang, &code)
+                let (info, code) = block.take().unwrap();
+                let html = if info.starts_with("rust") {
+                    code_block(&info, &code, lang)
                 } else {
-                    plain_block(&lang, &code)
+                    plain_block(&info, &code)
                 };
                 events.push(Event::Html(CowStr::from(html)));
             }
@@ -47,18 +50,20 @@ pub fn render(src: &str) -> String {
     out
 }
 
-fn code_block(lang: &str, code: &str) -> String {
-    let fails = lang.contains("compile_fail");
+fn code_block(info: &str, code: &str, lang: Lang) -> String {
+    let s = strings(lang);
+    let fails = info.contains("compile_fail");
     let mut header = String::new();
     if fails {
-        header.push_str(r#"<span class="badge fail">Nu compilează (intenționat)</span>"#);
-    } else if lang.contains("should_panic") {
-        header.push_str(r#"<span class="badge fail">Dă panic (intenționat)</span>"#);
+        header.push_str(&format!(r#"<span class="badge fail">{}</span>"#, s.badge_compile_fail));
+    } else if info.contains("should_panic") {
+        header.push_str(&format!(r#"<span class="badge fail">{}</span>"#, s.badge_should_panic));
     }
-    if !lang.contains("ignore") {
+    if !info.contains("ignore") {
         header.push_str(&format!(
-            r#"<a class="run" href="{PLAYGROUND}{}" target="_blank" rel="noopener">▶ Rulează</a>"#,
-            percent_encode(code)
+            r#"<a class="run" href="{PLAYGROUND}{}" target="_blank" rel="noopener">{}</a>"#,
+            percent_encode(code),
+            s.run
         ));
     }
     format!(

@@ -9,7 +9,7 @@ use std::sync::LazyLock;
 
 use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
 
-use crate::content::TOPICS;
+use crate::content::{Lang, TOPICS};
 
 const SNIPPET_RADIUS: usize = 70;
 const MAX_RESULTS: usize = 30;
@@ -31,17 +31,18 @@ pub struct Hit {
     pub snippet: (String, String, String),
 }
 
-static INDEX: LazyLock<Vec<Entry>> = LazyLock::new(build_index);
+/// Câte un index pentru fiecare limbă, în ordinea din `Lang::ALL`.
+static INDEX: LazyLock<[Vec<Entry>; 2]> = LazyLock::new(|| Lang::ALL.map(build_index));
 
-fn build_index() -> Vec<Entry> {
+fn build_index(lang: Lang) -> Vec<Entry> {
     let mut entries = Vec::new();
     for (topic, t) in TOPICS.iter().enumerate() {
-        for (level, page) in t.levels.iter().enumerate() {
-            let (headings, text) = plain_text(page);
+        for level in 0..4 {
+            let (headings, text) = plain_text(t.page(lang, level));
             entries.push(Entry {
                 topic,
                 level,
-                title: fold(t.title),
+                title: fold(t.title(lang)),
                 headings: headings.iter().map(|h| fold(h)).collect(),
                 folded_text: fold(&text),
                 text: text.chars().collect(),
@@ -117,14 +118,14 @@ fn count(haystack: &[char], needle: &[char]) -> usize {
     haystack.windows(needle.len()).filter(|w| *w == needle).count()
 }
 
-pub fn search(query: &str) -> Vec<Hit> {
+pub fn search(query: &str, lang: Lang) -> Vec<Hit> {
     let terms: Vec<Vec<char>> = query.split_whitespace().map(fold).collect();
     if terms.is_empty() {
         return Vec::new();
     }
 
     // (câți termeni apar în titlu, scor din conținut, intrare)
-    let mut scored: Vec<(usize, usize, &Entry)> = INDEX
+    let mut scored: Vec<(usize, usize, &Entry)> = INDEX[lang.index()]
         .iter()
         .filter_map(|e| {
             let (mut title_terms, mut score) = (0, 0);
@@ -207,8 +208,8 @@ mod tests {
 
     #[test]
     fn diacritics_are_ignored() {
-        let fara = search("functii");
-        let cu = search("Funcții");
+        let fara = search("functii", Lang::Ro);
+        let cu = search("Funcții", Lang::Ro);
         assert!(!fara.is_empty());
         assert_eq!(slug(&fara[0]), "functii");
         assert_eq!(fara.len(), cu.len());
@@ -216,7 +217,7 @@ mod tests {
 
     #[test]
     fn title_matches_rank_first_in_level_order() {
-        let hits = search("lifetimes");
+        let hits = search("lifetimes", Lang::Ro);
         let primele: Vec<_> = hits.iter().take(4).map(|h| (slug(h), h.level)).collect();
         assert_eq!(primele, [("lifetimes", 0), ("lifetimes", 1), ("lifetimes", 2), ("lifetimes", 3)]);
     }
@@ -224,31 +225,31 @@ mod tests {
     #[test]
     fn snippet_skips_page_title() {
         // „Concurență — Fundamente” e titlul paginii; fragmentul trebuie să vină din text
-        let hit = search("concurenta").into_iter().next().unwrap();
+        let hit = search("concurenta", Lang::Ro).into_iter().next().unwrap();
         let tot = format!("{}{}{}", hit.snippet.0, hit.snippet.1, hit.snippet.2);
         assert!(!tot.contains("— Fundamente"), "{tot}");
     }
 
     #[test]
     fn all_terms_must_match() {
-        for h in search("refcell panic") {
-            let e = INDEX.iter().find(|e| e.topic == h.topic && e.level == h.level).unwrap();
+        for h in search("refcell panic", Lang::Ro) {
+            let e = INDEX[0].iter().find(|e| e.topic == h.topic && e.level == h.level).unwrap();
             assert!(find(&e.folded_text, &fold("refcell")).is_some());
             assert!(find(&e.folded_text, &fold("panic")).is_some());
         }
-        assert!(search("cuvantcarenuexista").is_empty());
+        assert!(search("cuvantcarenuexista", Lang::Ro).is_empty());
     }
 
     #[test]
     fn snippet_contains_original_match() {
-        let hits = search("concurenta");
+        let hits = search("concurenta", Lang::Ro);
         let (_, matched, _) = &hits.iter().find(|h| !h.snippet.1.is_empty()).unwrap().snippet;
         assert_eq!(fold(matched), fold("concurenta"));
     }
 
     #[test]
     fn code_is_searchable() {
-        assert!(search("split_at_mut").iter().any(|h| slug(h) == "unsafe-ffi"));
+        assert!(search("split_at_mut", Lang::Ro).iter().any(|h| slug(h) == "unsafe-ffi"));
     }
 
     #[test]

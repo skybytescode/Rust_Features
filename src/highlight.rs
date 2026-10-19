@@ -288,7 +288,7 @@ mod tests {
     fn all_site_code_blocks_keep_their_text() {
         let mut blocks = 0;
         for topic in crate::content::TOPICS {
-            for page in topic.levels {
+            for page in crate::content::Lang::ALL.iter().flat_map(|&l| (0..4).map(move |n| topic.page(l, n))) {
                 let mut lines = page.lines();
                 while let Some(line) = lines.next() {
                     let fence: String = line.chars().take_while(|&c| c == '`').collect();
@@ -310,7 +310,7 @@ mod tests {
                 }
             }
         }
-        assert!(blocks > 400, "doar {blocks} blocuri găsite");
+        assert!(blocks > 800, "doar {blocks} blocuri găsite");
     }
 
     fn strip_tags(s: &str) -> String {

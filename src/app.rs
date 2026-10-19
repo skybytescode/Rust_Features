@@ -1,11 +1,13 @@
 //! Interfața aplicației.
 //!
-//! Navigarea folosește fragmentul din URL (`#/<slug>/<nivel>`), ca site-ul
-//! să funcționeze pe GitHub Pages fără configurare de server.
+//! Navigarea folosește fragmentul din URL (`#/<slug>/<nivel>`, iar pentru
+//! engleză `#/en/<slug>/<nivel>`), ca site-ul să funcționeze pe GitHub Pages
+//! fără configurare de server.
 
 use leptos::prelude::*;
 
-use crate::content::{LEVELS, TOPICS};
+use crate::content::{LEVELS, Lang, TOPICS};
+use crate::i18n::{self, strings};
 use crate::{markdown, search};
 
 /// Căutarea pornește de la acest număr de caractere.
@@ -18,21 +20,35 @@ struct Route {
     level: usize,
 }
 
-/// `None` înseamnă pagina de start.
-fn parse_hash(hash: &str) -> Option<Route> {
-    let mut parts = hash.trim_start_matches('#').trim_start_matches('/').split('/');
-    let slug = parts.next()?;
-    let topic = TOPICS.iter().position(|t| t.slug == slug)?;
-    let level = parts
-        .next()
-        .and_then(|l| l.parse::<usize>().ok())
-        .filter(|l| (1..=LEVELS.len()).contains(l))
-        .map_or(0, |l| l - 1);
-    Some(Route { topic, level })
+/// Limba și pagina din fragmentul URL; pagina `None` înseamnă pagina de start.
+fn parse_hash(hash: &str) -> (Lang, Option<Route>) {
+    let path = hash.trim_start_matches('#').trim_start_matches('/');
+    let (lang, path) = match path.strip_prefix("en") {
+        Some(rest) if rest.is_empty() || rest.starts_with('/') => (Lang::En, rest.trim_start_matches('/')),
+        _ => (Lang::Ro, path),
+    };
+    let mut parts = path.split('/');
+    let route = parts.next().and_then(|slug| {
+        let topic = TOPICS.iter().position(|t| t.slug == slug)?;
+        let level = parts
+            .next()
+            .and_then(|l| l.parse::<usize>().ok())
+            .filter(|l| (1..=LEVELS.len()).contains(l))
+            .map_or(0, |l| l - 1);
+        Some(Route { topic, level })
+    });
+    (lang, route)
 }
 
-fn href(topic: usize, level: usize) -> String {
-    format!("#/{}/{}", TOPICS[topic].slug, level + 1)
+fn prefix(lang: Lang) -> &'static str {
+    match lang {
+        Lang::Ro => "#/",
+        Lang::En => "#/en/",
+    }
+}
+
+fn href(lang: Lang, topic: usize, level: usize) -> String {
+    format!("{}{}/{}", prefix(lang), TOPICS[topic].slug, level + 1)
 }
 
 fn current_hash() -> String {
@@ -63,20 +79,49 @@ pub fn App() -> impl IntoView {
         }
     });
 
-    let route = Memo::new(move |_| parse_hash(&hash.get()));
+    let parsed = Memo::new(move |_| parse_hash(&hash.get()));
+    let lang = Memo::new(move |_| parsed.get().0);
+    let route = Memo::new(move |_| parsed.get().1);
     // Nivelul ales rămâne activ când treci la alt subiect.
     let level = Memo::new(move |_| route.get().map_or(0, |r| r.level));
     let searching = Memo::new(move |_| query.with(|q| q.trim().chars().count() >= MIN_QUERY));
 
+    // <html lang> urmează limba paginii, pentru cititoarele de ecran și traducerea automată
+    Effect::new(move |_| {
+        if let Some(root) = document().document_element() {
+            let _ = root.set_attribute("lang", lang.get().code());
+        }
+    });
+
+    // Aceeași pagină, în cealaltă limbă
+    let switch_href = move || {
+        let other = lang.get().other();
+        match route.get() {
+            Some(r) => href(other, r.topic, r.level),
+            None => prefix(other).to_string(),
+        }
+    };
+
     view! {
         <div class="layout">
             <aside class="sidebar">
-                <a href="#/" class="brand">"🦀 Rust Futures"</a>
+                <div class="sidebar-top">
+                    <a href=move || prefix(lang.get()) class="brand">"🦀 Rust Futures"</a>
+                    <a
+                        href=switch_href
+                        class="lang-toggle"
+                        hreflang=move || lang.get().other().code()
+                        title=move || strings(lang.get()).switch_label
+                        aria-label=move || strings(lang.get()).switch_label
+                    >
+                        {move || lang.get().other().code().to_uppercase()}
+                    </a>
+                </div>
                 <input
                     type="search"
                     class="search"
-                    placeholder="Caută…  ( / )"
-                    aria-label="Caută în tot conținutul"
+                    placeholder=move || strings(lang.get()).search_placeholder
+                    aria-label=move || strings(lang.get()).search_label
                     node_ref=search_input
                     prop:value=move || query.get()
                     on:input=move |ev| query.set(event_target_value(&ev))
@@ -93,10 +138,10 @@ pub fn App() -> impl IntoView {
                         .map(|(i, t)| {
                             view! {
                                 <a
-                                    href=move || href(i, level.get())
+                                    href=move || href(lang.get(), i, level.get())
                                     class:active=move || route.get().is_some_and(|r| r.topic == i)
                                 >
-                                    {t.title}
+                                    {move || t.title(lang.get())}
                                 </a>
                             }
                         })
@@ -105,12 +150,13 @@ pub fn App() -> impl IntoView {
             </aside>
             <main>
                 {move || {
+                    let lang = lang.get();
                     if searching.get() {
-                        view! { <SearchResults query=query /> }.into_any()
+                        view! { <SearchResults query=query lang=lang /> }.into_any()
                     } else {
                         match route.get() {
-                            Some(r) => view! { <TopicPage route=r /> }.into_any(),
-                            None => view! { <Home /> }.into_any(),
+                            Some(r) => view! { <TopicPage route=r lang=lang /> }.into_any(),
+                            None => view! { <Home lang=lang /> }.into_any(),
                         }
                     }
                 }}
@@ -120,13 +166,12 @@ pub fn App() -> impl IntoView {
 }
 
 #[component]
-fn Home() -> impl IntoView {
+fn Home(lang: Lang) -> impl IntoView {
+    let s = strings(lang);
     view! {
         <section class="home">
-            <h1>"Rust, de la primul program până în compilator"</h1>
-            <p class="lead">
-                "Fiecare subiect are 4 niveluri. Toate nivelurile acoperă aceleași funcționalități ale limbajului; diferă doar cât de adânc intrăm în ele."
-            </p>
+            <h1>{s.home_title}</h1>
+            <p class="lead">{s.home_lead}</p>
             <div class="levels">
                 {LEVELS
                     .iter()
@@ -135,19 +180,19 @@ fn Home() -> impl IntoView {
                         view! {
                             <div class="level-card">
                                 <span class="level-num">{i + 1}</span>
-                                <h3>{l.name}</h3>
-                                <p>{l.tagline}</p>
+                                <h3>{l.name(lang)}</h3>
+                                <p>{l.tagline(lang)}</p>
                             </div>
                         }
                     })
                     .collect_view()}
             </div>
-            <h2>"Subiecte"</h2>
+            <h2>{s.topics_heading}</h2>
             <div class="topics">
                 {TOPICS
                     .iter()
                     .enumerate()
-                    .map(|(i, t)| view! { <a class="topic-card" href=href(i, 0)>{t.title}</a> })
+                    .map(|(i, t)| view! { <a class="topic-card" href=href(lang, i, 0)>{t.title(lang)}</a> })
                     .collect_view()}
             </div>
         </section>
@@ -155,17 +200,13 @@ fn Home() -> impl IntoView {
 }
 
 #[component]
-fn SearchResults(query: RwSignal<String>) -> impl IntoView {
-    let hits = Memo::new(move |_| query.with(|q| search::search(q.trim())));
+fn SearchResults(query: RwSignal<String>, lang: Lang) -> impl IntoView {
+    let hits = Memo::new(move |_| query.with(|q| search::search(q.trim(), lang)));
 
     view! {
         <section class="results">
             <p class="results-count" aria-live="polite">
-                {move || match hits.with(Vec::len) {
-                    0 => format!("Niciun rezultat pentru „{}”", query.get().trim()),
-                    1 => "1 rezultat".to_string(),
-                    n => format!("{n} rezultate"),
-                }}
+                {move || i18n::results_count(lang, hits.with(Vec::len), query.get().trim())}
             </p>
             {move || {
                 hits.with(|hits| {
@@ -173,12 +214,12 @@ fn SearchResults(query: RwSignal<String>) -> impl IntoView {
                         .map(|h| {
                             let (before, matched, after) = h.snippet.clone();
                             view! {
-                                <a class="result" href=href(h.topic, h.level)>
+                                <a class="result" href=href(lang, h.topic, h.level)>
                                     <span class="result-title">
-                                        {TOPICS[h.topic].title}
+                                        {TOPICS[h.topic].title(lang)}
                                         <span class="result-level">
                                             <span class="level-num">{h.level + 1}</span>
-                                            {LEVELS[h.level].name}
+                                            {LEVELS[h.level].name(lang)}
                                         </span>
                                     </span>
                                     <span class="result-snippet">
@@ -197,7 +238,7 @@ fn SearchResults(query: RwSignal<String>) -> impl IntoView {
 }
 
 #[component]
-fn TopicPage(route: Route) -> impl IntoView {
+fn TopicPage(route: Route, lang: Lang) -> impl IntoView {
     let topic = &TOPICS[route.topic];
     let prev = route.topic.checked_sub(1);
     let next = Some(route.topic + 1).filter(|&n| n < TOPICS.len());
@@ -210,24 +251,56 @@ fn TopicPage(route: Route) -> impl IntoView {
                 .map(|(i, l)| {
                     view! {
                         <a
-                            href=href(route.topic, i)
+                            href=href(lang, route.topic, i)
                             class="level-tab"
                             class:active=i == route.level
                             role="tab"
                             aria-selected=(i == route.level).to_string()
                         >
                             <span class="level-num">{i + 1}</span>
-                            {l.name}
+                            {l.name(lang)}
                         </a>
                     }
                 })
                 .collect_view()}
         </div>
-        <article class="content" inner_html=markdown::render(topic.levels[route.level]) />
+        <article class="content" inner_html=markdown::render(topic.page(lang, route.level), lang) />
         <nav class="pager">
-            {prev.map(|p| view! { <a href=href(p, route.level)>"← " {TOPICS[p].title}</a> })}
+            {prev.map(|p| view! { <a href=href(lang, p, route.level)>"← " {TOPICS[p].title(lang)}</a> })}
             <span />
-            {next.map(|n| view! { <a href=href(n, route.level)>{TOPICS[n].title} " →"</a> })}
+            {next.map(|n| view! { <a href=href(lang, n, route.level)>{TOPICS[n].title(lang)} " →"</a> })}
         </nav>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn romanian_urls_keep_working() {
+        assert_eq!(parse_hash("#/ownership/2"), (Lang::Ro, Some(Route { topic: 3, level: 1 })));
+        assert_eq!(parse_hash(""), (Lang::Ro, None));
+        assert_eq!(parse_hash("#/"), (Lang::Ro, None));
+    }
+
+    #[test]
+    fn english_urls() {
+        assert_eq!(parse_hash("#/en/ownership/4"), (Lang::En, Some(Route { topic: 3, level: 3 })));
+        assert_eq!(parse_hash("#/en"), (Lang::En, None));
+        assert_eq!(parse_hash("#/en/"), (Lang::En, None));
+        assert_eq!(href(Lang::En, 3, 0), "#/en/ownership/1");
+    }
+
+    #[test]
+    fn slug_starting_with_en_is_not_english() {
+        // un subiect al cărui slug ar începe cu „en” nu trebuie confundat cu prefixul de limbă
+        assert_eq!(parse_hash("#/enums/1").0, Lang::Ro);
+    }
+
+    impl std::fmt::Debug for Route {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "Route({}, {})", self.topic, self.level)
+        }
     }
 }

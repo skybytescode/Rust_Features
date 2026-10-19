@@ -1,6 +1,7 @@
 mod app;
 mod content;
 mod highlight;
+mod i18n;
 mod markdown;
 mod search;
 
