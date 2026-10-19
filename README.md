@@ -9,7 +9,7 @@ Aplicație web despre funcționalitățile limbajului Rust, organizată pe 4 niv
 | 3 | Avansat | De ce funcționează așa |
 | 4 | Expert | Cum funcționează pe dinăuntru |
 
-Fiecare subiect acoperă toate cele 4 niveluri.
+Fiecare subiect acoperă toate cele 4 niveluri. Site-ul e disponibil în română și în engleză (butonul **EN / RO** din bara laterală).
 
 ## Tech stack
 
@@ -27,7 +27,9 @@ trunk serve --open
 
 ## Conținut
 
-Textele sunt în `content/<subiect>/<nivel>.md`. Lista subiectelor este în `src/content.rs`.
+Textele sunt în `content/<subiect>/<nivel>.md` (română) și `content/<subiect>/<nivel>.en.md` (engleză). Lista subiectelor și titlurile lor în ambele limbi sunt în `src/content.rs`, iar textele interfeței în `src/i18n.rs`.
+
+URL-urile în română au forma `#/<subiect>/<nivel>`, iar cele în engleză `#/en/<subiect>/<nivel>`.
 
 Blocurile de cod marcate cu ` ```rust ` primesc un buton „Rulează” care le deschide în Rust Playground:
 

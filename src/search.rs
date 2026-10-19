@@ -253,6 +253,15 @@ mod tests {
     }
 
     #[test]
+    fn english_index_is_separate() {
+        let hits = search("error handling", Lang::En);
+        assert_eq!(slug(&hits[0]), "erori");
+        // cuvintele românești nu apar în textul englezesc
+        assert!(search("împrumut", Lang::En).is_empty());
+        assert!(!search("împrumut", Lang::Ro).is_empty());
+    }
+
+    #[test]
     fn fold_keeps_length() {
         let s = "Ștefan și Țara Românească — İ";
         assert_eq!(fold(s).len(), s.chars().count());
