@@ -2,6 +2,7 @@ mod app;
 mod content;
 mod highlight;
 mod markdown;
+mod search;
 
 fn main() {
     console_error_panic_hook::set_once();
