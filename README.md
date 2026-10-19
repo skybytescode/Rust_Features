@@ -1,4 +1,4 @@
-# Rust Futures
+# Rust Features
 
 Aplicație web despre funcționalitățile limbajului Rust, organizată pe 4 niveluri de adâncime:
 

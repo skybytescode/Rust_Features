@@ -106,7 +106,7 @@ pub fn App() -> impl IntoView {
         <div class="layout">
             <aside class="sidebar">
                 <div class="sidebar-top">
-                    <a href=move || prefix(lang.get()) class="brand">"🦀 Rust Futures"</a>
+                    <a href=move || prefix(lang.get()) class="brand">"🦀 Rust Features"</a>
                     <a
                         href=switch_href
                         class="lang-toggle"
