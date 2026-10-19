@@ -12,6 +12,8 @@ pub struct Strings {
     pub badge_compile_fail: &'static str,
     pub badge_should_panic: &'static str,
     pub run: &'static str,
+    pub offline_heading: &'static str,
+    pub offline_lead: &'static str,
 }
 
 const RO: Strings = Strings {
@@ -24,6 +26,8 @@ const RO: Strings = Strings {
     badge_compile_fail: "Nu compilează (intenționat)",
     badge_should_panic: "Dă panic (intenționat)",
     run: "▶ Rulează",
+    offline_heading: "Aplicație și offline",
+    offline_lead: "Pe iPhone: Safari → Share → „Add to Home Screen”. Pe Android și desktop: meniul browserului → „Instalează aplicația”. După prima deschidere, toate lecțiile funcționează și fără internet.",
 };
 
 const EN: Strings = Strings {
@@ -36,6 +40,8 @@ const EN: Strings = Strings {
     badge_compile_fail: "Does not compile (on purpose)",
     badge_should_panic: "Panics (on purpose)",
     run: "▶ Run",
+    offline_heading: "App and offline",
+    offline_lead: "On iPhone: Safari → Share → “Add to Home Screen”. On Android and desktop: the browser menu → “Install app”. After the first visit, every lesson works without internet too.",
 };
 
 pub fn strings(lang: Lang) -> &'static Strings {

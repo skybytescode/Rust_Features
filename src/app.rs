@@ -195,6 +195,10 @@ fn Home(lang: Lang) -> impl IntoView {
                     .map(|(i, t)| view! { <a class="topic-card" href=href(lang, i, 0)>{t.title(lang)}</a> })
                     .collect_view()}
             </div>
+            <h2>{s.offline_heading}</h2>
+            <div class="offline-card">
+                <p>{s.offline_lead}</p>
+            </div>
         </section>
     }
 }
